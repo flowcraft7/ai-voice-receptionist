@@ -5,6 +5,8 @@ type Message = { role: "user" | "assistant"; content: string };
 type Service = { id: string; name: string; price: string; description: string };
 type Business = { id: string; name: string; phone: string; location: string; hours: string; persona: string };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export default function VoiceWidget({ businessId: businessIdProp }: { businessId?: string }) {
   const [isRecording, setIsRecording] = useState(false);
   const [textInput, setTextInput] = useState("");
@@ -27,7 +29,7 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
     }
     setBusinessId(id);
 
-    fetch(`http://localhost:8000/business/${id}`)
+    fetch(`${API_URL}/business/${id}`)
       .then((res) => res.json())
       .then((data) => {
         setBusiness(data.business);
@@ -44,7 +46,7 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
     setSending(true);
     setMessages((prev) => [...prev, { role: "user", content: userText }]);
 
-    const chatRes = await fetch("http://localhost:8000/chat", {
+    const chatRes = await fetch(`${API_URL}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -59,7 +61,7 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
     setMessages(chatData.history);
     alreadyBookedRef.current = chatData.already_booked;
 
-    const speakRes = await fetch("http://localhost:8000/speak", {
+    const speakRes = await fetch(`${API_URL}/speak`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: chatData.reply }),
@@ -99,7 +101,7 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
       const formData = new FormData();
       formData.append("audio", audioBlob, "recording.webm");
 
-      const res = await fetch("http://localhost:8000/transcribe", {
+      const res = await fetch(`${API_URL}/transcribe`, {
         method: "POST",
         body: formData,
       });
@@ -125,8 +127,8 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
       style={{
         display: "flex",
         flexDirection: "column",
-        background: "rgba(241,245,249,0.04)",
-        border: "1px solid rgba(241,245,249,0.12)",
+        background: "rgba(242,237,228,0.04)",
+        border: "1px solid rgba(242,237,228,0.12)",
         borderRadius: "16px",
         overflow: "hidden",
         height: "100%",
@@ -137,7 +139,7 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
     >
       <audio ref={audioRef} />
 
-      <div style={{ padding: "1.1rem 1.25rem", borderBottom: "1px solid rgba(241,245,249,0.1)" }}>
+      <div style={{ padding: "1.1rem 1.25rem", borderBottom: "1px solid rgba(242,237,228,0.1)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: business ? "0.4rem" : 0 }}>
           <div
             style={{
@@ -168,14 +170,14 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
       </div>
 
       {services.length > 0 && (
-        <div style={{ display: "flex", gap: "0.5rem", padding: "0.75rem 1.25rem", overflowX: "auto", borderBottom: "1px solid rgba(241,245,249,0.1)" }}>
+        <div style={{ display: "flex", gap: "0.5rem", padding: "0.75rem 1.25rem", overflowX: "auto", borderBottom: "1px solid rgba(242,237,228,0.1)" }}>
           {services.map((s) => (
             <div
               key={s.id}
               style={{
                 flexShrink: 0,
-                background: "rgba(45,212,191,0.08)",
-                border: "1px solid rgba(45,212,191,0.2)",
+                background: "var(--accent-soft)",
+                border: "1px solid rgba(138,163,119,0.2)",
                 borderRadius: "8px",
                 padding: "0.4rem 0.7rem",
                 whiteSpace: "nowrap",
@@ -223,7 +225,7 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
             style={{
               alignSelf: m.role === "user" ? "flex-end" : "flex-start",
               maxWidth: "80%",
-              background: m.role === "user" ? "var(--accent)" : "rgba(241,245,249,0.08)",
+              background: m.role === "user" ? "var(--accent)" : "rgba(242,237,228,0.08)",
               color: m.role === "user" ? "var(--bg)" : "var(--text)",
               padding: "0.6rem 0.9rem",
               borderRadius: "12px",
@@ -242,7 +244,7 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
         )}
       </div>
 
-      <div style={{ padding: "0.9rem 1rem", borderTop: "1px solid rgba(241,245,249,0.1)", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+      <div style={{ padding: "0.9rem 1rem", borderTop: "1px solid rgba(242,237,228,0.1)", display: "flex", gap: "0.5rem", alignItems: "center" }}>
         <button
           onClick={isRecording ? stopRecording : startRecording}
           style={{
@@ -271,8 +273,8 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
             flex: 1,
             padding: "0.7rem 0.9rem",
             borderRadius: "10px",
-            border: "1px solid rgba(241,245,249,0.15)",
-            background: "rgba(241,245,249,0.05)",
+            border: "1px solid rgba(242,237,228,0.15)",
+            background: "rgba(242,237,228,0.05)",
             color: "var(--text)",
             fontFamily: "var(--font-body)",
           }}

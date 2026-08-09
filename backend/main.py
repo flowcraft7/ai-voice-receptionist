@@ -119,16 +119,31 @@ Keep responses short and conversational, like a real phone receptionist. Quote p
             booking_json = reply[start:end].strip()
             booking_data = json.loads(booking_json)
 
-            supabase.table("appointments").insert({
-                "business_id": business_id,
-                "customer_name": booking_data.get("customer_name"),
-                "requested_date": booking_data.get("requested_date"),
-                "requested_time": booking_data.get("requested_time"),
-                "notes": booking_data.get("notes", ""),
-            }).execute()
+            requested_date = booking_data.get("requested_date")
+            requested_time = booking_data.get("requested_time")
 
-            clean_reply = reply[:reply.index("[BOOKING]")].strip()
-            booked_now = True
+            conflict = supabase.table("appointments") \
+                .select("id") \
+                .eq("business_id", business_id) \
+                .eq("requested_date", requested_date) \
+                .eq("requested_time", requested_time) \
+                .neq("status", "cancelled") \
+                .execute()
+
+            if conflict.data:
+                clean_reply = reply[:reply.index("[BOOKING]")].strip()
+                clean_reply += f"\n\nActually, that slot ({requested_date} at {requested_time}) is already booked. Could you pick a different time?"
+            else:
+                supabase.table("appointments").insert({
+                    "business_id": business_id,
+                    "customer_name": booking_data.get("customer_name"),
+                    "requested_date": requested_date,
+                    "requested_time": requested_time,
+                    "notes": booking_data.get("notes", ""),
+                }).execute()
+
+                clean_reply = reply[:reply.index("[BOOKING]")].strip()
+                booked_now = True
         except Exception as e:
             print("Booking parse error:", e)
     elif "[BOOKING]" in reply:
