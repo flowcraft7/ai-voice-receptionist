@@ -1,6 +1,7 @@
 import os
 import io
 import json
+from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -72,11 +73,18 @@ async def chat(payload: dict = Body(...)):
         f"{s['name']} ({s.get('price', 'price on request')})" for s in services.data
     ) if services.data else biz.get("services", "N/A")
 
+    now = datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
+    weekday_str = now.strftime("%A")
+
     booking_instruction = (
         "An appointment has ALREADY been booked in this conversation. Do NOT output another [BOOKING] block, even if asked to confirm again. Just chat normally."
         if already_booked else
-        """If you now have all three of: customer's name, preferred date, and preferred time (collected across this whole conversation), end your reply with a hidden JSON block on its own line in this exact format:
-[BOOKING]{"customer_name": "...", "requested_date": "...", "requested_time": "...", "notes": "..."}[/BOOKING]
+        f"""Today's date is {today_str} ({weekday_str}). When the customer mentions a relative day (e.g. "Friday", "tomorrow", "next Monday"), resolve it to the correct actual calendar date based on today's date — always assume the NEXT upcoming occurrence of that day.
+
+If you now have all three of: customer's name, preferred date, and preferred time (collected across this whole conversation), end your reply with a hidden JSON block on its own line in this exact format:
+[BOOKING]{{"customer_name": "...", "requested_date": "YYYY-MM-DD", "requested_time": "HH:MM (24-hour)", "notes": "..."}}[/BOOKING]
+The requested_date MUST be an actual resolved calendar date in YYYY-MM-DD format, never a relative word like "Friday". The requested_time MUST be in 24-hour HH:MM format.
 Only include this block once you actually have all three. Otherwise don't include it at all."""
     )
 
@@ -87,7 +95,7 @@ Hours: {biz.get('hours', 'N/A')}
 Location: {biz.get('location', 'N/A')}
 
 Always reply in the SAME language and script the customer used (English, Urdu, or Roman Urdu) — match them exactly.
-Keep responses short and conversational, like a real phone receptionist. Quote prices when asked. Remember everything the customer has told you earlier in this conversation.
+Keep responses short and conversational, like a real phone receptionist. Quote prices when asked. Remember everything the customer has told you earlier in this conversation. When confirming a booking back to the customer in your spoken reply, mention the date in a natural human way (e.g. "Friday, August 15th"), not the raw YYYY-MM-DD format.
 
 {booking_instruction}"""
 

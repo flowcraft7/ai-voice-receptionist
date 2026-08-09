@@ -1,9 +1,10 @@
 :root {
-  --bg: #0F172A;
-  --accent: #2DD4BF;
-  --accent-soft: rgba(45, 212, 191, 0.15);
-  --text: #F1F5F9;
-  --muted: #94A3B8;
+  --bg: #17140F;
+  --accent: #8AA377;
+  --accent-soft: rgba(138, 163, 119, 0.15);
+  --text: #F2EDE4;
+  --muted: #A69C8C;
+  --accent2: #C9A15A;
 }
 
 * {
@@ -14,6 +15,8 @@
 
 body {
   background: var(--bg);
+  background-image: radial-gradient(rgba(242,237,228,0.05) 1px, transparent 1px);
+  background-size: 26px 26px;
   color: var(--text);
   font-family: var(--font-body), sans-serif;
   overflow-x: hidden;
@@ -30,11 +33,55 @@ body {
   50% { opacity: 1; }
 }
 
+@keyframes float-badge {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-14px) rotate(2deg); }
+}
+
+@keyframes float-card {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
 .bg-blob {
   position: fixed;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.25;
+  filter: blur(90px);
+  opacity: 0.15;
   z-index: 0;
   pointer-events: none;
+}
+
+.btn-primary {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.btn-primary:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 12px 30px rgba(138, 163, 119, 0.35);
+}
+
+.btn-outline {
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.btn-outline:hover {
+  background: var(--accent-soft);
+  transform: translateY(-2px);
+}
+
+.hover-badge {
+  transition: transform 0.25s ease;
+}
+.hover-badge:hover {
+  transform: scale(1.1) !important;
+}
+
+.mockup-card {
+  transition: transform 0.3s ease;
+}
+.mockup-card:hover {
+  transform: translateY(-6px) scale(1.015);
+}@media (max-width: 640px) {
+  .hover-badge {
+    display: none !important;
+  }
 }
