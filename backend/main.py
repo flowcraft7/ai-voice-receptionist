@@ -27,7 +27,6 @@ groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 @app.get("/health")
 def health():
     return {"status": "ok"}
-<<<<<<< HEAD
 
 
 @app.get("/test-db")
@@ -148,5 +147,3 @@ async def speak(payload: dict = Body(...)):
 
     audio_buffer.seek(0)
     return StreamingResponse(audio_buffer, media_type="audio/mpeg")
-=======
->>>>>>> 3f91d47df31c4a60795594219836ea3bcf79ded0
