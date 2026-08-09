@@ -36,6 +36,12 @@ def test_db():
     return result.data
 
 
+@app.get("/businesses")
+def list_businesses():
+    result = supabase.table("businesses").select("id, name, hours, location, phone").execute()
+    return result.data
+
+
 @app.get("/business/{business_id}")
 def get_business(business_id: str):
     biz = supabase.table("businesses").select("*").eq("id", business_id).execute()

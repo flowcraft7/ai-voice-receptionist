@@ -8,13 +8,21 @@ export default function Home() {
     <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden" }}>
       <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.5rem 2rem", position: "relative", zIndex: 2 }}>
         <p style={{ fontFamily: "var(--font-display)", fontSize: "1.2rem", fontWeight: 600 }}>Front Desk</p>
-        <button
-          onClick={() => router.push("/login")}
-          className="btn-outline"
-          style={{ padding: "0.6rem 1.2rem", borderRadius: "8px", border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", fontWeight: 600, cursor: "pointer" }}
-        >
-          Business Login
-        </button>
+        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+          <button
+            onClick={() => router.push("/directory")}
+            style={{ background: "none", border: "none", color: "var(--muted)", fontWeight: 600, cursor: "pointer", fontSize: "0.95rem" }}
+          >
+            Browse Businesses
+          </button>
+          <button
+            onClick={() => router.push("/login")}
+            className="btn-outline"
+            style={{ padding: "0.6rem 1.2rem", borderRadius: "8px", border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", fontWeight: 600, cursor: "pointer" }}
+          >
+            Business Login
+          </button>
+        </div>
       </nav>
 
       <main style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "3rem", padding: "2rem 4rem 6rem", maxWidth: "1300px", margin: "0 auto" }}>
