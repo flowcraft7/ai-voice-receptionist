@@ -4,7 +4,7 @@ import json
 import smtplib
 from email.mime.text import MIMEText
 from datetime import datetime
-from fastapi import FastAPI, UploadFile, File, Body
+from fastapi import FastAPI, UploadFile, File, Body, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
@@ -31,7 +31,10 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 
 
 def send_booking_email(to_email: str, business_name: str, customer_name: str, date: str, time: str, notes: str):
+    print(f"Attempting to send email. to={to_email}, smtp_email_set={bool(SMTP_EMAIL)}, smtp_password_set={bool(SMTP_PASSWORD)}")
+
     if not to_email or not SMTP_EMAIL or not SMTP_PASSWORD:
+        print("Email skipped: missing to_email or SMTP credentials")
         return
 
     try:
@@ -49,9 +52,11 @@ Log in to your dashboard to view all appointments."""
         msg["From"] = SMTP_EMAIL
         msg["To"] = to_email
 
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
             server.login(SMTP_EMAIL, SMTP_PASSWORD)
             server.send_message(msg)
+
+        print(f"Email sent successfully to {to_email}")
     except Exception as e:
         print("Email send error:", e)
 
@@ -96,7 +101,7 @@ async def transcribe(audio: UploadFile = File(...)):
 
 
 @app.post("/chat")
-async def chat(payload: dict = Body(...)):
+async def chat(payload: dict = Body(...), background_tasks: BackgroundTasks = None):
     user_text = payload.get("text", "")
     business_id = payload.get("business_id")
     history = payload.get("history", [])
@@ -183,8 +188,9 @@ Keep responses short and conversational, like a real phone receptionist. Quote p
                 booked_now = True
 
                 notify_email = biz.get("notification_email")
-                if notify_email:
-                    send_booking_email(
+                if notify_email and background_tasks is not None:
+                    background_tasks.add_task(
+                        send_booking_email,
                         notify_email,
                         biz.get("name", "Your business"),
                         booking_data.get("customer_name"),
