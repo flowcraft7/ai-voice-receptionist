@@ -12,6 +12,7 @@ type Business = {
   location: string;
   phone: string;
   notification_email: string;
+  accent_color: string;
 };
 
 type Service = {
@@ -29,6 +30,7 @@ type Appointment = {
   requested_time: string;
   notes: string;
   status: string;
+  created_at: string;
 };
 
 export default function DashboardPage() {
@@ -97,6 +99,7 @@ export default function DashboardPage() {
         location: form.location,
         phone: form.phone,
         notification_email: form.notification_email,
+        accent_color: form.accent_color,
       })
       .eq("id", business.id);
 
@@ -184,6 +187,12 @@ export default function DashboardPage() {
     );
   }
 
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const totalAppointments = appointments.length;
+  const activeAppointments = appointments.filter((a) => a.status !== "cancelled").length;
+  const thisWeek = appointments.filter((a) => new Date(a.created_at) >= weekAgo).length;
+
   return (
     <div style={{ minHeight: "100vh", padding: "3rem 2rem", maxWidth: "800px", margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
@@ -208,6 +217,25 @@ export default function DashboardPage() {
             {`https://ai-voice-receptionist-amber.vercel.app/widget/${business.id}`}
           </a>
         </p>
+      </div>
+
+      <h2 style={{ fontFamily: "var(--font-mono)", fontSize: "0.9rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "1rem" }}>
+        Overview
+      </h2>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.9rem", marginBottom: "2rem" }}>
+        <div style={{ background: "rgba(242,237,228,0.05)", border: "1px solid rgba(242,237,228,0.1)", borderRadius: "10px", padding: "1rem" }}>
+          <p style={{ fontFamily: "var(--font-display)", fontSize: "1.6rem", color: "var(--accent)" }}>{totalAppointments}</p>
+          <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>Total bookings</p>
+        </div>
+        <div style={{ background: "rgba(242,237,228,0.05)", border: "1px solid rgba(242,237,228,0.1)", borderRadius: "10px", padding: "1rem" }}>
+          <p style={{ fontFamily: "var(--font-display)", fontSize: "1.6rem", color: "var(--accent)" }}>{activeAppointments}</p>
+          <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>Active (not cancelled)</p>
+        </div>
+        <div style={{ background: "rgba(242,237,228,0.05)", border: "1px solid rgba(242,237,228,0.1)", borderRadius: "10px", padding: "1rem" }}>
+          <p style={{ fontFamily: "var(--font-display)", fontSize: "1.6rem", color: "var(--accent)" }}>{thisWeek}</p>
+          <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>This week</p>
+        </div>
       </div>
 
       <h2 style={{ fontFamily: "var(--font-mono)", fontSize: "0.9rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "1rem" }}>
@@ -238,6 +266,18 @@ export default function DashboardPage() {
         <div>
           <label style={labelStyle}>Notification Email</label>
           <input style={inputStyle} value={form.notification_email || ""} onChange={(e) => setForm({ ...form, notification_email: e.target.value })} placeholder="you@example.com" />
+        </div>
+        <div>
+          <label style={labelStyle}>Widget Accent Color</label>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <input
+              type="color"
+              value={form.accent_color || "#8AA377"}
+              onChange={(e) => setForm({ ...form, accent_color: e.target.value })}
+              style={{ width: "48px", height: "42px", borderRadius: "6px", border: "1px solid rgba(242,237,228,0.15)", background: "transparent", cursor: "pointer" }}
+            />
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.85rem", color: "var(--muted)" }}>{form.accent_color || "#8AA377"}</span>
+          </div>
         </div>
 
         <button

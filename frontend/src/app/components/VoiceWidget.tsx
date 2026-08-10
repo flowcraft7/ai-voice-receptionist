@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 
 type Message = { role: "user" | "assistant"; content: string };
 type Service = { id: string; name: string; price: string; description: string };
-type Business = { id: string; name: string; phone: string; location: string; hours: string; persona: string };
+type Business = { id: string; name: string; phone: string; location: string; hours: string; persona: string; accent_color?: string };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -154,6 +154,10 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
     mediaRecorderRef.current?.stop();
     setIsRecording(false);
   };
+
+  const accentOverride = business?.accent_color
+    ? ({ "--accent": business.accent_color, "--accent-soft": `${business.accent_color}26` } as React.CSSProperties)
+    : {};
 
   const businessInfoBlock = (
     <div>
@@ -378,6 +382,7 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
           width: "100%",
           maxWidth: "760px",
           margin: "0 auto",
+          ...accentOverride,
         }}
       >
         <audio ref={audioRef} />
@@ -407,6 +412,7 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
         width: "100%",
         maxWidth: "480px",
         margin: "0 auto",
+        ...accentOverride,
       }}
     >
       <audio ref={audioRef} />
