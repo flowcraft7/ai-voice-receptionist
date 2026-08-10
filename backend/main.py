@@ -1,6 +1,8 @@
 import os
 import io
 import json
+import smtplib
+from email.mime.text import MIMEText
 from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Body
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +25,36 @@ app.add_middleware(
 
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+SMTP_EMAIL = os.getenv("SMTP_EMAIL")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+
+
+def send_booking_email(to_email: str, business_name: str, customer_name: str, date: str, time: str, notes: str):
+    if not to_email or not SMTP_EMAIL or not SMTP_PASSWORD:
+        return
+
+    try:
+        body = f"""New appointment booked for {business_name}!
+
+Customer: {customer_name}
+Date: {date}
+Time: {time}
+Notes: {notes or "N/A"}
+
+Log in to your dashboard to view all appointments."""
+
+        msg = MIMEText(body)
+        msg["Subject"] = f"New Booking: {customer_name} - {date} at {time}"
+        msg["From"] = SMTP_EMAIL
+        msg["To"] = to_email
+
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.send_message(msg)
+    except Exception as e:
+        print("Email send error:", e)
 
 
 @app.get("/health")
@@ -150,6 +182,17 @@ Keep responses short and conversational, like a real phone receptionist. Quote p
 
                 clean_reply = reply[:reply.index("[BOOKING]")].strip()
                 booked_now = True
+
+                notify_email = biz.get("notification_email")
+                if notify_email:
+                    send_booking_email(
+                        notify_email,
+                        biz.get("name", "Your business"),
+                        booking_data.get("customer_name"),
+                        requested_date,
+                        requested_time,
+                        booking_data.get("notes", ""),
+                    )
         except Exception as e:
             print("Booking parse error:", e)
     elif "[BOOKING]" in reply:

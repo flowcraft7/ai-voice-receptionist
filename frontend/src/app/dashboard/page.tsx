@@ -11,6 +11,7 @@ type Business = {
   hours: string;
   location: string;
   phone: string;
+  notification_email: string;
 };
 
 type Service = {
@@ -95,6 +96,7 @@ export default function DashboardPage() {
         hours: form.hours,
         location: form.location,
         phone: form.phone,
+        notification_email: form.notification_email,
       })
       .eq("id", business.id);
 
@@ -203,7 +205,7 @@ export default function DashboardPage() {
             rel="noopener noreferrer"
             style={{ color: "var(--accent)", fontFamily: "var(--font-mono)", fontSize: "0.9rem", wordBreak: "break-all" }}
           >
-            https://ai-voice-receptionist-amber.vercel.app/widget/{business.id}
+            {`https://ai-voice-receptionist-amber.vercel.app/widget/${business.id}`}
           </a>
         </p>
       </div>
@@ -232,6 +234,10 @@ export default function DashboardPage() {
         <div>
           <label style={labelStyle}>Phone</label>
           <input style={inputStyle} value={form.phone || ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+        </div>
+        <div>
+          <label style={labelStyle}>Notification Email</label>
+          <input style={inputStyle} value={form.notification_email || ""} onChange={(e) => setForm({ ...form, notification_email: e.target.value })} placeholder="you@example.com" />
         </div>
 
         <button
