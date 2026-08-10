@@ -49,8 +49,7 @@ Log in to your dashboard to view all appointments."""
         msg["From"] = SMTP_EMAIL
         msg["To"] = to_email
 
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.starttls()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(SMTP_EMAIL, SMTP_PASSWORD)
             server.send_message(msg)
     except Exception as e:
