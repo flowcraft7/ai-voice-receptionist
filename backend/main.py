@@ -1,8 +1,7 @@
 import os
 import io
 import json
-import smtplib
-from email.mime.text import MIMEText
+import requests
 from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Body, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,15 +25,12 @@ app.add_middleware(
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-SMTP_EMAIL = os.getenv("SMTP_EMAIL")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 
 
 def send_booking_email(to_email: str, business_name: str, customer_name: str, date: str, time: str, notes: str):
-    print(f"Attempting to send email. to={to_email}, smtp_email_set={bool(SMTP_EMAIL)}, smtp_password_set={bool(SMTP_PASSWORD)}")
-
-    if not to_email or not SMTP_EMAIL or not SMTP_PASSWORD:
-        print("Email skipped: missing to_email or SMTP credentials")
+    if not to_email or not RESEND_API_KEY:
+        print("Email skipped: missing to_email or RESEND_API_KEY")
         return
 
     try:
@@ -47,16 +43,18 @@ Notes: {notes or "N/A"}
 
 Log in to your dashboard to view all appointments."""
 
-        msg = MIMEText(body)
-        msg["Subject"] = f"New Booking: {customer_name} - {date} at {time}"
-        msg["From"] = SMTP_EMAIL
-        msg["To"] = to_email
-
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
-            server.login(SMTP_EMAIL, SMTP_PASSWORD)
-            server.send_message(msg)
-
-        print(f"Email sent successfully to {to_email}")
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+            json={
+                "from": "AI Receptionist <onboarding@resend.dev>",
+                "to": [to_email],
+                "subject": f"New Booking: {customer_name} - {date} at {time}",
+                "text": body,
+            },
+            timeout=10,
+        )
+        print(f"Email response: {response.status_code} {response.text}")
     except Exception as e:
         print("Email send error:", e)
 
@@ -165,14 +163,15 @@ Keep responses short and conversational, like a real phone receptionist. Quote p
             requested_time = booking_data.get("requested_time")
 
             conflict = supabase.table("appointments") \
-                .select("id") \
+                .select("id, status") \
                 .eq("business_id", business_id) \
                 .eq("requested_date", requested_date) \
                 .eq("requested_time", requested_time) \
-                .neq("status", "cancelled") \
                 .execute()
 
-            if conflict.data:
+            active_conflict = [r for r in conflict.data if r.get("status") != "cancelled"]
+
+            if active_conflict:
                 clean_reply = reply[:reply.index("[BOOKING]")].strip()
                 clean_reply += f"\n\nActually, that slot ({requested_date} at {requested_time}) is already booked. Could you pick a different time?"
             else:
@@ -182,6 +181,7 @@ Keep responses short and conversational, like a real phone receptionist. Quote p
                     "requested_date": requested_date,
                     "requested_time": requested_time,
                     "notes": booking_data.get("notes", ""),
+                    "status": "pending",
                 }).execute()
 
                 clean_reply = reply[:reply.index("[BOOKING]")].strip()
