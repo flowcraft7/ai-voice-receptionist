@@ -8,7 +8,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [error, setError] = useState("");
-  const [isSignup, setIsSignup] = useState(false);
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -17,7 +17,20 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    if (isSignup) {
+    if (mode === "forgot") {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login`,
+      });
+      setLoading(false);
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      setError("Password reset link sent. Check your email.");
+      return;
+    }
+
+    if (mode === "signup") {
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) {
         setError(error.message);
@@ -44,7 +57,7 @@ export default function LoginPage() {
         return;
       }
       setError("Account created. Please log in.");
-      setIsSignup(false);
+      setMode("login");
       return;
     }
 
@@ -59,22 +72,22 @@ export default function LoginPage() {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1.5rem", position: "relative" }}>
-      <div className="bg-blob" style={{ width: "350px", height: "350px", background: "#2DD4BF", top: "-80px", left: "-80px", animation: "float 18s ease-in-out infinite" }} />
-      <div className="bg-blob" style={{ width: "300px", height: "300px", background: "#818CF8", bottom: "-100px", right: "-80px", animation: "float 22s ease-in-out infinite reverse" }} />
+      <div className="bg-blob" style={{ width: "350px", height: "350px", background: "var(--accent)", top: "-80px", left: "-80px", animation: "float 18s ease-in-out infinite" }} />
+      <div className="bg-blob" style={{ width: "300px", height: "300px", background: "var(--accent2)", bottom: "-100px", right: "-80px", animation: "float 22s ease-in-out infinite reverse" }} />
 
-      <h1 style={{ fontFamily: "var(--font-display)", fontSize: "2rem", position: "relative", zIndex: 1 }}>
-        {isSignup ? "Create your business account" : "Business login"}
+      <h1 style={{ fontFamily: "var(--font-display)", fontSize: "2rem", position: "relative", zIndex: 1, textAlign: "center" }}>
+        {mode === "signup" ? "Create your business account" : mode === "forgot" ? "Reset your password" : "Business login"}
       </h1>
 
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem", width: "320px", position: "relative", zIndex: 1 }}>
-        {isSignup && (
+        {mode === "signup" && (
           <input
             type="text"
             placeholder="Business name"
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
             required
-            style={{ padding: "0.75rem", borderRadius: "8px", border: "1px solid rgba(241,245,249,0.15)", background: "rgba(241,245,249,0.05)", color: "var(--text)" }}
+            style={{ padding: "0.75rem", borderRadius: "8px", border: "1px solid rgba(242,237,228,0.15)", background: "rgba(242,237,228,0.05)", color: "var(--text)" }}
           />
         )}
         <input
@@ -83,33 +96,55 @@ export default function LoginPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          style={{ padding: "0.75rem", borderRadius: "8px", border: "1px solid rgba(241,245,249,0.15)", background: "rgba(241,245,249,0.05)", color: "var(--text)" }}
+          style={{ padding: "0.75rem", borderRadius: "8px", border: "1px solid rgba(242,237,228,0.15)", background: "rgba(242,237,228,0.05)", color: "var(--text)" }}
         />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          style={{ padding: "0.75rem", borderRadius: "8px", border: "1px solid rgba(241,245,249,0.15)", background: "rgba(241,245,249,0.05)", color: "var(--text)" }}
-        />
+        {mode !== "forgot" && (
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            style={{ padding: "0.75rem", borderRadius: "8px", border: "1px solid rgba(242,237,228,0.15)", background: "rgba(242,237,228,0.05)", color: "var(--text)" }}
+          />
+        )}
         <button
           type="submit"
           disabled={loading}
           style={{ padding: "0.75rem", borderRadius: "8px", border: "none", background: "var(--accent)", color: "var(--bg)", fontWeight: 600, cursor: "pointer" }}
         >
-          {loading ? "Please wait..." : isSignup ? "Create account" : "Log in"}
+          {loading ? "Please wait..." : mode === "signup" ? "Create account" : mode === "forgot" ? "Send reset link" : "Log in"}
         </button>
       </form>
 
       {error && <p style={{ color: "var(--accent)", fontSize: "0.85rem", maxWidth: "320px", textAlign: "center", position: "relative", zIndex: 1 }}>{error}</p>}
 
-      <button
-        onClick={() => setIsSignup(!isSignup)}
-        style={{ background: "none", border: "none", color: "var(--muted)", textDecoration: "underline", cursor: "pointer", fontSize: "0.85rem", position: "relative", zIndex: 1 }}
-      >
-        {isSignup ? "Already have an account? Log in" : "New business? Sign up"}
-      </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", alignItems: "center", position: "relative", zIndex: 1 }}>
+        {mode === "login" && (
+          <>
+            <button
+              onClick={() => { setMode("signup"); setError(""); }}
+              style={{ background: "none", border: "none", color: "var(--muted)", textDecoration: "underline", cursor: "pointer", fontSize: "0.85rem" }}
+            >
+              New business? Sign up
+            </button>
+            <button
+              onClick={() => { setMode("forgot"); setError(""); }}
+              style={{ background: "none", border: "none", color: "var(--muted)", textDecoration: "underline", cursor: "pointer", fontSize: "0.85rem" }}
+            >
+              Forgot password?
+            </button>
+          </>
+        )}
+        {mode !== "login" && (
+          <button
+            onClick={() => { setMode("login"); setError(""); }}
+            style={{ background: "none", border: "none", color: "var(--muted)", textDecoration: "underline", cursor: "pointer", fontSize: "0.85rem" }}
+          >
+            Back to login
+          </button>
+        )}
+      </div>
     </div>
   );
 }

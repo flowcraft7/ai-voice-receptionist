@@ -15,6 +15,9 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
   const [business, setBusiness] = useState<Business | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [sending, setSending] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [loadingBusiness, setLoadingBusiness] = useState(true);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -28,14 +31,20 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
       id = params.get("business_id") || "6a7aaff7-772a-4fb5-8394-6118a4424d5e";
     }
     setBusinessId(id);
+    setLoadingBusiness(true);
+    setLoadError(false);
 
     fetch(`${API_URL}/business/${id}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load");
+        return res.json();
+      })
       .then((data) => {
         setBusiness(data.business);
         setServices(data.services || []);
       })
-      .catch((err) => console.error("Failed to load business:", err));
+      .catch(() => setLoadError(true))
+      .finally(() => setLoadingBusiness(false));
   }, [businessIdProp]);
 
   useEffect(() => {
@@ -44,38 +53,45 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
 
   const sendToAgent = async (userText: string) => {
     setSending(true);
+    setSendError("");
     setMessages((prev) => [...prev, { role: "user", content: userText }]);
 
-    const chatRes = await fetch(`${API_URL}/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: userText,
-        business_id: businessId,
-        history: messages,
-        already_booked: alreadyBookedRef.current,
-      }),
-    });
+    try {
+      const chatRes = await fetch(`${API_URL}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: userText,
+          business_id: businessId,
+          history: messages,
+          already_booked: alreadyBookedRef.current,
+        }),
+      });
 
-    const chatData = await chatRes.json();
-    setMessages(chatData.history);
-    alreadyBookedRef.current = chatData.already_booked;
+      if (!chatRes.ok) throw new Error("Chat request failed");
+      const chatData = await chatRes.json();
+      setMessages(chatData.history);
+      alreadyBookedRef.current = chatData.already_booked;
 
-    const speakRes = await fetch(`${API_URL}/speak`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: chatData.reply }),
-    });
+      const speakRes = await fetch(`${API_URL}/speak`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: chatData.reply }),
+      });
 
-    const audioBlobReply = await speakRes.blob();
-    const audioUrl = URL.createObjectURL(audioBlobReply);
-
-    if (audioRef.current) {
-      audioRef.current.src = audioUrl;
-      audioRef.current.play();
+      if (speakRes.ok) {
+        const audioBlobReply = await speakRes.blob();
+        const audioUrl = URL.createObjectURL(audioBlobReply);
+        if (audioRef.current) {
+          audioRef.current.src = audioUrl;
+          audioRef.current.play();
+        }
+      }
+    } catch (err) {
+      setSendError("Something went wrong. Please try again.");
+    } finally {
+      setSending(false);
     }
-
-    setSending(false);
   };
 
   const handleTextSend = () => {
@@ -90,31 +106,39 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
   };
 
   const startRecording = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream);
-    chunksRef.current = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
 
-    recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
-    recorder.onstop = async () => {
-      const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
+      recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
 
-      const formData = new FormData();
-      formData.append("audio", audioBlob, "recording.webm");
+        const formData = new FormData();
+        formData.append("audio", audioBlob, "recording.webm");
 
-      const res = await fetch(`${API_URL}/transcribe`, {
-        method: "POST",
-        body: formData,
-      });
+        try {
+          const res = await fetch(`${API_URL}/transcribe`, {
+            method: "POST",
+            body: formData,
+          });
+          if (!res.ok) throw new Error("Transcribe failed");
+          const data = await res.json();
+          if (data.text && data.text.trim()) {
+            sendToAgent(data.text.trim());
+          }
+        } catch {
+          setSendError("Couldn't process audio. Please try again or type instead.");
+        }
+      };
 
-      const data = await res.json();
-      if (data.text && data.text.trim()) {
-        sendToAgent(data.text.trim());
-      }
-    };
-
-    recorder.start();
-    mediaRecorderRef.current = recorder;
-    setIsRecording(true);
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+    } catch {
+      setSendError("Microphone access denied. Please type instead.");
+    }
   };
 
   const stopRecording = () => {
@@ -151,7 +175,7 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
             }}
           />
           <p style={{ fontFamily: "var(--font-display)", fontSize: "1.15rem", fontWeight: 600 }}>
-            {business ? business.name : "Loading..."}
+            {loadingBusiness ? "Loading..." : loadError ? "Unable to load" : business ? business.name : "Business not found"}
           </p>
         </div>
         {business && (
@@ -169,133 +193,160 @@ export default function VoiceWidget({ businessId: businessIdProp }: { businessId
         )}
       </div>
 
-      {services.length > 0 && (
-        <div style={{ display: "flex", gap: "0.5rem", padding: "0.75rem 1.25rem", overflowX: "auto", borderBottom: "1px solid rgba(242,237,228,0.1)" }}>
-          {services.map((s) => (
-            <div
-              key={s.id}
-              style={{
-                flexShrink: 0,
-                background: "var(--accent-soft)",
-                border: "1px solid rgba(138,163,119,0.2)",
-                borderRadius: "8px",
-                padding: "0.4rem 0.7rem",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span style={{ fontSize: "0.8rem", fontWeight: 600 }}>{s.name}</span>
-              <span style={{ fontSize: "0.75rem", color: "var(--accent)", marginLeft: "0.4rem", fontFamily: "var(--font-mono)" }}>{s.price}</span>
-            </div>
-          ))}
+      {loadError && (
+        <div style={{ padding: "2rem 1.25rem", textAlign: "center" }}>
+          <p style={{ color: "var(--muted)", fontSize: "0.9rem", marginBottom: "1rem" }}>
+            We couldn't reach this business right now. Please try again in a moment.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{ padding: "0.5rem 1rem", borderRadius: "8px", border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", cursor: "pointer" }}
+          >
+            Retry
+          </button>
         </div>
       )}
 
-      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "1rem 1.25rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        {messages.length === 0 && (
-          <>
-            <p style={{ color: "var(--muted)", fontSize: "0.85rem", textAlign: "center", marginTop: "1rem", marginBottom: "0.5rem" }}>
-              How can we help?
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", justifyContent: "center" }}>
-              <button
-                onClick={() => handleQuickAction("I'd like to book an appointment")}
-                style={{ padding: "0.5rem 0.9rem", borderRadius: "999px", border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", fontSize: "0.8rem", cursor: "pointer" }}
-              >
-                Book Appointment
-              </button>
-              <button
-                onClick={() => handleQuickAction("What services and prices do you offer?")}
-                style={{ padding: "0.5rem 0.9rem", borderRadius: "999px", border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", fontSize: "0.8rem", cursor: "pointer" }}
-              >
-                View Prices
-              </button>
-              <button
-                onClick={() => handleQuickAction("I have a question")}
-                style={{ padding: "0.5rem 0.9rem", borderRadius: "999px", border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", fontSize: "0.8rem", cursor: "pointer" }}
-              >
-                Ask a Question
-              </button>
+      {!loadError && (
+        <>
+          {services.length > 0 && (
+            <div style={{ display: "flex", gap: "0.5rem", padding: "0.75rem 1.25rem", overflowX: "auto", borderBottom: "1px solid rgba(242,237,228,0.1)" }}>
+              {services.map((s) => (
+                <div
+                  key={s.id}
+                  style={{
+                    flexShrink: 0,
+                    background: "var(--accent-soft)",
+                    border: "1px solid rgba(138,163,119,0.2)",
+                    borderRadius: "8px",
+                    padding: "0.4rem 0.7rem",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span style={{ fontSize: "0.8rem", fontWeight: 600 }}>{s.name}</span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--accent)", marginLeft: "0.4rem", fontFamily: "var(--font-mono)" }}>{s.price}</span>
+                </div>
+              ))}
             </div>
-          </>
-        )}
+          )}
 
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            style={{
-              alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-              maxWidth: "80%",
-              background: m.role === "user" ? "var(--accent)" : "rgba(242,237,228,0.08)",
-              color: m.role === "user" ? "var(--bg)" : "var(--text)",
-              padding: "0.6rem 0.9rem",
-              borderRadius: "12px",
-              fontSize: "0.9rem",
-              lineHeight: 1.4,
-            }}
-          >
-            {m.content}
+          <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "1rem 1.25rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {messages.length === 0 && !loadingBusiness && (
+              <>
+                <p style={{ color: "var(--muted)", fontSize: "0.85rem", textAlign: "center", marginTop: "1rem", marginBottom: "0.5rem" }}>
+                  How can we help?
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", justifyContent: "center" }}>
+                  <button
+                    onClick={() => handleQuickAction("I'd like to book an appointment")}
+                    style={{ padding: "0.5rem 0.9rem", borderRadius: "999px", border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", fontSize: "0.8rem", cursor: "pointer" }}
+                  >
+                    Book Appointment
+                  </button>
+                  <button
+                    onClick={() => handleQuickAction("What services and prices do you offer?")}
+                    style={{ padding: "0.5rem 0.9rem", borderRadius: "999px", border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", fontSize: "0.8rem", cursor: "pointer" }}
+                  >
+                    View Prices
+                  </button>
+                  <button
+                    onClick={() => handleQuickAction("I have a question")}
+                    style={{ padding: "0.5rem 0.9rem", borderRadius: "999px", border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", fontSize: "0.8rem", cursor: "pointer" }}
+                  >
+                    Ask a Question
+                  </button>
+                </div>
+              </>
+            )}
+
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                style={{
+                  alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+                  maxWidth: "80%",
+                  background: m.role === "user" ? "var(--accent)" : "rgba(242,237,228,0.08)",
+                  color: m.role === "user" ? "var(--bg)" : "var(--text)",
+                  padding: "0.6rem 0.9rem",
+                  borderRadius: "12px",
+                  fontSize: "0.9rem",
+                  lineHeight: 1.4,
+                }}
+              >
+                {m.content}
+              </div>
+            ))}
+
+            {sending && (
+              <div style={{ alignSelf: "flex-start", color: "var(--muted)", fontSize: "0.8rem", fontFamily: "var(--font-mono)" }}>
+                typing...
+              </div>
+            )}
+
+            {sendError && (
+              <div style={{ alignSelf: "center", color: "var(--accent)", fontSize: "0.8rem", textAlign: "center" }}>
+                {sendError}
+              </div>
+            )}
           </div>
-        ))}
 
-        {sending && (
-          <div style={{ alignSelf: "flex-start", color: "var(--muted)", fontSize: "0.8rem", fontFamily: "var(--font-mono)" }}>
-            typing...
+          <div style={{ padding: "0.9rem 1rem", borderTop: "1px solid rgba(242,237,228,0.1)", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <button
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={loadingBusiness}
+              style={{
+                width: "42px",
+                height: "42px",
+                flexShrink: 0,
+                borderRadius: "50%",
+                border: "none",
+                background: isRecording ? "#ef4444" : "var(--accent)",
+                color: "var(--bg)",
+                fontSize: "1.1rem",
+                cursor: loadingBusiness ? "not-allowed" : "pointer",
+                opacity: loadingBusiness ? 0.5 : 1,
+              }}
+              aria-label={isRecording ? "Stop talking" : "Start talking"}
+            >
+              🎤
+            </button>
+
+            <input
+              type="text"
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleTextSend()}
+              placeholder="Type a message..."
+              disabled={loadingBusiness}
+              style={{
+                flex: 1,
+                padding: "0.7rem 0.9rem",
+                borderRadius: "10px",
+                border: "1px solid rgba(242,237,228,0.15)",
+                background: "rgba(242,237,228,0.05)",
+                color: "var(--text)",
+                fontFamily: "var(--font-body)",
+              }}
+            />
+
+            <button
+              onClick={handleTextSend}
+              disabled={sending || loadingBusiness}
+              style={{
+                padding: "0.7rem 1rem",
+                borderRadius: "10px",
+                border: "none",
+                background: "var(--muted)",
+                color: "var(--bg)",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Send
+            </button>
           </div>
-        )}
-      </div>
-
-      <div style={{ padding: "0.9rem 1rem", borderTop: "1px solid rgba(242,237,228,0.1)", display: "flex", gap: "0.5rem", alignItems: "center" }}>
-        <button
-          onClick={isRecording ? stopRecording : startRecording}
-          style={{
-            width: "42px",
-            height: "42px",
-            flexShrink: 0,
-            borderRadius: "50%",
-            border: "none",
-            background: isRecording ? "#ef4444" : "var(--accent)",
-            color: "var(--bg)",
-            fontSize: "1.1rem",
-            cursor: "pointer",
-          }}
-          aria-label={isRecording ? "Stop talking" : "Start talking"}
-        >
-          🎤
-        </button>
-
-        <input
-          type="text"
-          value={textInput}
-          onChange={(e) => setTextInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleTextSend()}
-          placeholder="Type a message..."
-          style={{
-            flex: 1,
-            padding: "0.7rem 0.9rem",
-            borderRadius: "10px",
-            border: "1px solid rgba(242,237,228,0.15)",
-            background: "rgba(242,237,228,0.05)",
-            color: "var(--text)",
-            fontFamily: "var(--font-body)",
-          }}
-        />
-
-        <button
-          onClick={handleTextSend}
-          disabled={sending}
-          style={{
-            padding: "0.7rem 1rem",
-            borderRadius: "10px",
-            border: "none",
-            background: "var(--muted)",
-            color: "var(--bg)",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          Send
-        </button>
-      </div>
+        </>
+      )}
     </div>
   );
 }

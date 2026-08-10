@@ -147,8 +147,8 @@ export default function DashboardPage() {
   const inputStyle = {
     padding: "0.6rem 0.8rem",
     borderRadius: "6px",
-    border: "1px solid rgba(242,239,233,0.15)",
-    background: "rgba(242,239,233,0.05)",
+    border: "1px solid rgba(242,237,228,0.15)",
+    background: "rgba(242,237,228,0.05)",
     color: "var(--text)",
     fontFamily: "var(--font-body)",
     width: "100%",
@@ -194,11 +194,25 @@ export default function DashboardPage() {
         </button>
       </div>
 
+      <div style={{ background: "var(--accent-soft)", border: "1px solid rgba(138,163,119,0.2)", borderRadius: "10px", padding: "1.25rem", marginBottom: "2rem" }}>
+        <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>
+          Your public page{' '}
+          <a
+            href={`https://ai-voice-receptionist-amber.vercel.app/widget/${business.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--accent)", fontFamily: "var(--font-mono)", fontSize: "0.9rem", wordBreak: "break-all" }}
+          >
+            https://ai-voice-receptionist-amber.vercel.app/widget/{business.id}
+          </a>
+        </p>
+      </div>
+
       <h2 style={{ fontFamily: "var(--font-mono)", fontSize: "0.9rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "1rem" }}>
         Business details
       </h2>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "2rem", background: "rgba(242,239,233,0.03)", padding: "1.5rem", borderRadius: "10px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "2rem", background: "rgba(242,237,228,0.03)", padding: "1.5rem", borderRadius: "10px" }}>
         <div>
           <label style={labelStyle}>Name</label>
           <input style={inputStyle} value={form.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -242,7 +256,7 @@ export default function DashboardPage() {
               gridTemplateColumns: "2fr 1fr 2fr auto",
               gap: "0.5rem",
               alignItems: "center",
-              background: "rgba(242,239,233,0.05)",
+              background: "rgba(242,237,228,0.05)",
               padding: "0.75rem",
               borderRadius: "8px",
             }}
@@ -281,7 +295,7 @@ export default function DashboardPage() {
           gridTemplateColumns: "2fr 1fr 2fr auto",
           gap: "0.5rem",
           alignItems: "center",
-          background: "rgba(201,162,39,0.08)",
+          background: "var(--accent-soft)",
           padding: "0.75rem",
           borderRadius: "8px",
           marginBottom: "2.5rem",
@@ -326,8 +340,8 @@ export default function DashboardPage() {
           <div
             key={appt.id}
             style={{
-              background: "rgba(242,239,233,0.05)",
-              border: "1px solid rgba(242,239,233,0.1)",
+              background: "rgba(242,237,228,0.05)",
+              border: "1px solid rgba(242,237,228,0.1)",
               borderRadius: "8px",
               padding: "1rem 1.5rem",
               display: "flex",
